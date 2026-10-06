@@ -45,6 +45,8 @@ COPY backend/ ./backend/
 COPY --from=frontend-builder /build/frontend/package.json ./frontend/
 COPY --from=frontend-builder /build/frontend/package-lock.json ./frontend/
 RUN cd /app/frontend && npm ci --omit=dev
+# Verify next binary exists — fail build if missing
+RUN ls /app/frontend/node_modules/.bin/next
 
 # Copy the built .next directory and public assets
 COPY --from=frontend-builder /build/frontend/.next ./frontend/.next
