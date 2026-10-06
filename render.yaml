@@ -10,6 +10,7 @@ services:
     name: typeform-app
     runtime: docker
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
     envVars:
       - key: DATABASE_URL
