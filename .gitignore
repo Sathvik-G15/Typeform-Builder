@@ -6,9 +6,10 @@ frontend/build/
 frontend/.env*.local
 
 # Python
-backend/__pycache__/
-backend/*/__pycache__/
-backend/*.pyc
+__pycache__/
+**/__pycache__/
+*.pyc
+**/*.pyc
 backend/venv/
 backend/.env
 

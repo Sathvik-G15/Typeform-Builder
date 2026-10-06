@@ -60,7 +60,10 @@ def get_form(db: Session, form_id: str) -> Optional[models.Form]:
     return db.query(models.Form).filter(models.Form.id == form_id).first()
 
 def get_form_by_slug(db: Session, slug: str) -> Optional[models.Form]:
-    return db.query(models.Form).filter(models.Form.slug == slug).first()
+    form = db.query(models.Form).filter(models.Form.slug == slug).first()
+    if not form:
+        form = db.query(models.Form).filter(models.Form.id == slug).first()
+    return form
 
 def create_form(db: Session, form_in: schemas.FormCreate) -> models.Form:
     slug = generate_unique_slug(db, form_in.title)
@@ -247,8 +250,6 @@ def create_response(db: Session, form_id: str, submission: schemas.ResponseSubmi
     form = get_form(db, form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
-    if not form.is_published:
-        raise HTTPException(status_code=403, detail="This form is currently in draft mode and not accepting responses")
 
     # Client + Server validation for required fields
     submission_answers = {ans.question_id: (ans.value.strip() if ans.value else "") for ans in submission.answers}

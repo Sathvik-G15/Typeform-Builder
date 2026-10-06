@@ -10,9 +10,9 @@ router = APIRouter(prefix="/api/public/forms", tags=["public"])
 def get_public_form(slug: str, db: Session = Depends(get_db)):
     form = crud.get_form_by_slug(db, slug)
     if not form:
+        form = crud.get_form(db, slug)
+    if not form:
         raise HTTPException(status_code=404, detail="Form not found")
-    if not form.is_published:
-        raise HTTPException(status_code=403, detail="This form is currently not published and cannot accept responses.")
     
     return schemas.PublicFormResponse(
         id=form.id,
@@ -28,6 +28,8 @@ def get_public_form(slug: str, db: Session = Depends(get_db)):
 @router.post("/{slug}/submit", response_model=schemas.ResponseSubmissionResult)
 def submit_public_response(slug: str, submission: schemas.ResponseSubmissionRequest, db: Session = Depends(get_db)):
     form = crud.get_form_by_slug(db, slug)
+    if not form:
+        form = crud.get_form(db, slug)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
     
