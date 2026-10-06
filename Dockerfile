@@ -13,7 +13,7 @@ RUN npm ci
 
 COPY frontend/ ./
 
-# NEXT_PUBLIC_API_URL is empty so the browser calls /api/* (same origin)
+# Empty API URL = browser calls /api/* relative to same origin (Nginx routes it)
 ENV NEXT_PUBLIC_API_URL=""
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -22,7 +22,7 @@ RUN npm run build
 # ── Stage 2: Final unified image ──────────────────────────────────
 FROM python:3.11-slim AS final
 
-# Install Node.js 20, Nginx, Supervisor, gettext (for envsubst)
+# Install Node.js 20, Nginx, Supervisor, envsubst
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
@@ -35,24 +35,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# ── Backend setup ─────────────────────────────────────────────────
+# ── Backend ───────────────────────────────────────────────────────
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend/ ./backend/
 
-# ── Frontend setup (standalone output) ───────────────────────────
-COPY --from=frontend-builder /build/frontend/.next/standalone ./frontend/
-COPY --from=frontend-builder /build/frontend/.next/static ./frontend/.next/static
-COPY --from=frontend-builder /build/frontend/public ./frontend/public
+# ── Frontend (full build + production node_modules) ───────────────
+# Copy package files and install only production deps
+COPY --from=frontend-builder /build/frontend/package.json ./frontend/
+COPY --from=frontend-builder /build/frontend/package-lock.json ./frontend/
+RUN cd /app/frontend && npm ci --omit=dev
 
-# ── Nginx & Supervisor configs ────────────────────────────────────
+# Copy the built .next directory and public assets
+COPY --from=frontend-builder /build/frontend/.next ./frontend/.next
+COPY --from=frontend-builder /build/frontend/public ./frontend/public
+COPY --from=frontend-builder /build/frontend/next.config.ts ./frontend/next.config.ts
+
+# ── Nginx & Supervisor configs ─────────────────────────────────────
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY supervisord.conf /etc/supervisor/conf.d/app.conf
 
-# ── Startup script ────────────────────────────────────────────────
+# ── Startup script ─────────────────────────────────────────────────
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 EXPOSE 8080
 
 CMD ["/app/start.sh"]
+
